@@ -124,3 +124,10 @@ dmypy.json
 # Additions
 *.local
 models/optim/optimizer_config_pb2.py
+
+# Purdue HPC
+slurm-*
+*.sub
+
+# Virtual environment
+venv/
