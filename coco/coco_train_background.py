@@ -9,10 +9,10 @@
 #
 #
 #
-# Trains a CNN on CIFAR with noisy labels (uniform flip).
+# Trains a CNN on COCO with noisy labels (background flip).
 #
 # Usage:
-# python cifar.cifar_train
+# python coco.coco_train_background
 #
 # Mandatory flags:
 #   --config           [string]        Config file path
@@ -22,6 +22,7 @@
 #   --eval                             Run evaluation only
 #   --finetune                         Run finetuning on the pretrained model (for 5k steps or 2k steps on clean only)
 #   --random_weight                    Run the random weight baseline
+#   --ratio                            Run the proportion weight baseline
 #   --restore                          Whether to restore model
 #   --verbose                          Whether to print extra information
 #   --noise_ratio      [float]         Percentage of noise, default 0.4
@@ -39,6 +40,7 @@
 #
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import io
 import logging
 import numpy as np
 import os
@@ -56,10 +58,9 @@ from models.cnn.resnet_model import ResnetModel    # NOQA
 from utils import logger, gen_id
 from utils.learn_rate_schedulers import FixedLearnRateScheduler
 
-from cifar.generate_noisy_cifar_data import generate_noisy_cifar
-from cifar.noisy_cifar_dataset import NoisyCifar100Dataset    # NOQA
-from cifar.noisy_cifar_dataset import NoisyCifar10Dataset    # NOQA
-from cifar.noisy_cifar_input_pipeline import NoisyCifarInputPipeline    # NOQA
+from coco.generate_noisy_coco_data import generate_noisy_coco
+from coco.noisy_coco_dataset import NoisyCOCODataset    # NOQA
+from coco.noisy_coco_input_pipeline import NoisyCOCOInputPipeline    # NOQA
 from models.assigned_weights_resnet_model import AssignedWeightsResnetModel    # NOQA
 from models.weighted_resnet_model import WeightedResnetModel    # NOQA
 from models.reweight_model import reweight_autodiff
@@ -69,9 +70,12 @@ log = logger.get()
 
 def _get_config():
     """Gets config."""
-    config_file = FLAGS.config
+    if FLAGS.config is None:
+        config_file = os.path.join(
+            os.path.realpath(cnn.__path__[0]), 'configs/coco-{}.prototxt'.format(FLAGS.model))
+    else:
+        config_file = FLAGS.config
     config = ResnetModelConfig()
-    assert config_file is not None, 'Must pass in a configuration file through --config'
     Merge(open(config_file).read(), config)
     return config
 
@@ -79,6 +83,7 @@ def _get_config():
 def _get_model(config, inp, label, bsize, is_training, name_scope, reuse):
     """Builds models."""
     model_cls = 'resnet'
+
     trn_kwargs = {
         'is_training': is_training,
         'inp': inp,
@@ -125,8 +130,7 @@ def _get_reweighted_model(config, inp, label, weights, bsize, is_training, name_
 
 
 def _get_data_input(dataset, data_dir, split, bsize, is_training, seed, **kwargs):
-    """Builds data input."""
-    data = get_data_inputs(dataset, data_dir, split, is_training, bsize, 'cifar-noisy', **kwargs)
+    data = get_data_inputs(dataset, data_dir, split, is_training, bsize, 'coco-noisy', **kwargs)
     batch = data.inputs(seed=seed)
     inp, label, idx, clean_flag = batch['image'], batch['label'], batch['index'], batch['clean']
     DataTuple = namedtuple('DataTuple', ['data', 'inputs', 'labels', 'index', 'clean_flag'])
@@ -156,16 +160,22 @@ def _get_data_inputs(bsize, seed=0):
 def _get_noisy_data_inputs(bsize, seed=0):
     """Gets data input tensors."""
     # Compute the dataset directory for this experiment.
-    data_name = FLAGS.dataset + '-noisy-clean{:d}-noise{:d}-val{:d}-seed{:d}'.format(
+    data_name = FLAGS.dataset + '-noisy-background-clean{:d}-noise{:d}-val{:d}-seed{:d}'.format(
         FLAGS.num_clean, int(FLAGS.noise_ratio * 100), FLAGS.num_val, FLAGS.seed)
     data_dir = os.path.join(FLAGS.data_root, data_name)
     print(data_dir)
 
     # Generate TF records if not exist.
     if not os.path.exists(data_dir):
-        generate_noisy_cifar(FLAGS.dataset,
-                             os.path.join(FLAGS.data_root, FLAGS.dataset), FLAGS.num_val,
-                             FLAGS.noise_ratio, FLAGS.num_clean, data_dir, FLAGS.seed)
+        generate_noisy_coco(
+            FLAGS.dataset,
+            os.path.join(FLAGS.data_root, FLAGS.dataset),
+            FLAGS.num_val,
+            FLAGS.noise_ratio,
+            FLAGS.num_clean,
+            data_dir,
+            FLAGS.seed,
+            background=True)
 
     log.info('Building dataset')
     dataset = FLAGS.dataset + '-noisy'
@@ -257,7 +267,6 @@ def train_step(sess, model_a, model_b, ex_weights, model_c, data_a, data_b, ex_w
     :param model_c:
     :param data_a:
     :param data_b:
-    :param ex_wts_a:
 
     :return: Training cross entropy.
     """
@@ -269,6 +278,14 @@ def train_step(sess, model_a, model_b, ex_weights, model_c, data_a, data_b, ex_w
             rnd_normal = np.random.normal(0.0, 1.0, [inp_a.shape[0]])
             rnd_normal_plus = np.maximum(rnd_normal, 0.0)
             ex_weights_value = rnd_normal_plus / rnd_normal_plus.sum()
+        elif FLAGS.ratio:
+            unique, counts = np.unique(label_a, return_counts=True)
+            most_idx = np.argmax(counts)
+            nclasses = model_a.config.resnet_module_config.num_classes
+            wts = np.ones([nclasses])
+            wts[most_idx] = 0.1 / (0.40 + (0.60 / float(nclasses)))
+            ex_weights_value = wts[label_a]
+            ex_weights_value = ex_weights_value / ex_weights_value.sum()
         else:
             inp_b, label_b = sess.run([data_b.inputs, data_b.labels])
             dict_b = model_b._get_feed_dict(inp=inp_b, label=label_b)
@@ -370,7 +387,7 @@ def finetune_model(sess, exp_id, config, trn_data, data, model, val_model, save_
 
     # Set up learning rate schedule.
     if not FLAGS.restore:
-        lr_list = [1000]    # For clean only model.
+        lr_list = [1000]
     else:
         lr_list = config.optimizer_config.learn_rate_list
     if config.optimizer_config.learn_rate_scheduler_type == 'fixed':
@@ -382,7 +399,7 @@ def finetune_model(sess, exp_id, config, trn_data, data, model, val_model, save_
             config.optimizer_config.learn_rate_scheduler))
 
     if not FLAGS.restore:
-        max_train_iter = 2000    # For clean only model.
+        max_train_iter = 2000
     else:
         max_train_iter = niter_start + 5000
     it = tqdm(six.moves.xrange(niter_start, max_train_iter), desc=exp_id, ncols=0)
@@ -441,7 +458,7 @@ def train_model(sess,
                 noisy_val_model=None,
                 save_folder=None):
     """
-    Trains a CIFAR model.
+    Trains a COCO model.
 
     :param sess:                 [Session]    Session object.
     :param exp_id:               [string]     Experiment ID.
@@ -481,7 +498,6 @@ def train_model(sess,
         lr = config.optimizer_config.learn_rate
         lr_decay_steps = config.optimizer_config.learn_rate_decay_steps
         lr_list = config.optimizer_config.learn_rate_list
-        lr_list = [x for x in lr_list]
         lr_scheduler = FixedLearnRateScheduler(sess, model_c, lr, lr_decay_steps, lr_list)
     else:
         raise Exception('Unknown learning rate scheduler {}'.format(
@@ -547,13 +563,12 @@ def main():
     config = _get_config()
 
     # bsize = config.optimizer_config.batch_size
-    bsize_a = FLAGS.bsize_a # Batch size multiplier for data A
-    bsize_b = FLAGS.bsize_b # Batch size multiplier for data B
+    bsize_a = FLAGS.bsize_a
+    bsize_b = FLAGS.bsize_b
 
     log.info('Config: {}'.format(MessageToString(config)))
 
-    ## Get dataset path
-    data_name = FLAGS.dataset + '-noisy-clean{:d}-noise{:d}-val{:d}-seed{:d}'.format(
+    data_name = FLAGS.dataset + '-noisy-background-clean{:d}-noise{:d}-val{:d}-seed{:d}'.format(
         FLAGS.num_clean, int(FLAGS.noise_ratio * 100), FLAGS.num_val, FLAGS.seed)
     data_dir = os.path.join(FLAGS.data_root, data_name)
 
@@ -620,7 +635,6 @@ def main():
 
         ex_wts_a = tf.placeholder_with_default(
             tf.zeros([bsize_a], dtype=tf.float32), [bsize_a], name='ex_wts_a')
-
         model_a, model_b, ex_weights = reweight_autodiff(
             build_model_a,
             build_model_b,
@@ -689,6 +703,7 @@ if __name__ == '__main__':
     flags.DEFINE_bool('eval', False, 'Whether run evaluation only')
     flags.DEFINE_bool('finetune', False, 'Whether to finetune model')
     flags.DEFINE_bool('random_weight', False, 'Use random weights')
+    flags.DEFINE_bool('ratio', False, 'Use ratio baseline')
     flags.DEFINE_bool('restore', False, 'Whether restore model')
     flags.DEFINE_bool('verbose', True, 'Whether to show logging.INFO')
     flags.DEFINE_float('noise_ratio', 0.4, 'Noise ratio in the noisy training set')
@@ -702,9 +717,9 @@ if __name__ == '__main__':
     flags.DEFINE_integer('seed', 0, 'Random seed for creating the split')
     flags.DEFINE_string('config', None, 'Manually defined config file')
     flags.DEFINE_string('data_root', './data', 'Data folder')
-    flags.DEFINE_string('dataset', 'cifar-10', 'Dataset name')
+    flags.DEFINE_string('dataset', 'coco', 'Dataset name')
     flags.DEFINE_string('id', None, 'Experiment ID')
-    flags.DEFINE_string('results', './results/cifar', 'Saving folder')
+    flags.DEFINE_string('results', './results/coco', 'Saving folder')
     FLAGS = flags.FLAGS
     if FLAGS.verbose:
         log.setLevel(logging.DEBUG)

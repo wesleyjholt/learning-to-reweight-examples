@@ -16,7 +16,7 @@
 #
 #
 #
-# Converts CIFAR datasets to TFRecord format and manually add flip-label noise.
+# Converts COCO datasets to TFRecord format and manually add flip-label noise.
 # WARNING: the generated data is corrupted. Use it only for noisy label problem research.
 #
 # Output TFRecord in the following location:
@@ -27,7 +27,7 @@
 # [output folder]/validation-00000-of-00001
 #
 # Usage:
-# ./generate_noisy_cifar_data.py --dataset       [DATASET NAME]            \
+# ./generate_noisy_coco_data.py --dataset       [DATASET NAME]            \
 #                                --data_folder   [DATA FOLDER PATH]        \
 #                                --seed          [RANDOM SEED]             \
 #                                --noise_ratio   [NOISE RATIO]             \
@@ -36,7 +36,7 @@
 #
 # Flags:
 #   --data_folder:       Folder of where the dataset is stored.
-#   --dataset:           Dataset name, `cifar-10` or `cifar-100`.
+#   --dataset:           Dataset name, `coco`
 #   --noise_ratio:       Proportion of the noisy label data, default 0.01.
 #   --seed:              Random seed to be used for clean/noisy split.
 #   --num_clean:         Number of the clean training data, default 100.
@@ -142,26 +142,24 @@ def serialize_to_tf_record(basename, num_shard, images, labels, mask=None):
             writer.flush()
 
 
-def read_cifar_10(data_folder):
-    """Reads and parses examples from CIFAR10 data files.
+def read_coco(data_folder):
+    """Reads and parses examples from COCO data files.
 
     :param data_folder:     [string]       Folder where the raw data are stored.
 
     :return                 [tuple]        A tuple of train images and labels, and test images and
                                            labels
     """
-    train_file_list = [
-        'data_batch_1', 'data_batch_2', 'data_batch_3', 'data_batch_4', 'data_batch_5'
-    ]
-    test_file_list = ['test_batch']
+    train_file_list = ['data.pickle']
+    test_file_list = ['data.pickle']
     data_dict = {}
     for file_list, name in zip([train_file_list, test_file_list], ['train', 'validation']):
         img_list = []
         label_list = []
         for ii in six.moves.xrange(len(file_list)):
-            data_dict = _unpickle(os.path.join(data_folder, 'cifar-10-batches-py', file_list[ii]))
-            _img = data_dict[b'data']
-            _label = data_dict[b'labels']
+            data_dict = _unpickle(os.path.join(data_folder, 'image-data', file_list[ii]))
+            _img = data_dict['data']
+            _label = data_dict['labels']
             _img = _img.reshape([-1, 3, 32, 32])
             _img = _img.transpose([0, 2, 3, 1])
             img_list.append(_img)
@@ -175,32 +173,6 @@ def read_cifar_10(data_folder):
             test_img = img
             test_label = label
         # train_img and test_img have shape [n_images, n_rows, n_cols, n_channels]
-    return train_img, train_label, test_img, test_label
-
-
-def read_cifar_100(data_folder):
-    """Reads and parses examples from CIFAR100 data files.
-
-    :param data_folder:     [string]       Folder where the raw data are stored.
-
-    :return                 [tuple]        A tuple of train images and labels, and test images and
-                                           labels
-    """
-    train_file_list = ['train']
-    test_file_list = ['test']
-
-    data_dict = _unpickle(os.path.join(data_folder, 'cifar-100-python', train_file_list[0]))
-    train_img = data_dict['data']
-    train_label = np.array(data_dict['fine_labels'])
-
-    data_dict = _unpickle(os.path.join(data_folder, 'cifar-100-python', test_file_list[0]))
-    test_img = data_dict['data']
-    test_label = np.array(data_dict['fine_labels'])
-
-    train_img = train_img.reshape([-1, 3, 32, 32])
-    train_img = train_img.transpose([0, 2, 3, 1])
-    test_img = test_img.reshape([-1, 3, 32, 32])
-    test_img = test_img.transpose([0, 2, 3, 1])
     return train_img, train_label, test_img, test_label
 
 
@@ -320,7 +292,7 @@ def generate_data(img, label, noise_ratio, num_clean, num_classes, seed, backgro
     return noise_img, noise_label, noise_mask, clean_img, clean_label
 
 
-def generate_noisy_cifar(dataset,
+def generate_noisy_coco(dataset,
                          data_folder,
                          num_val,
                          noise_ratio,
@@ -328,14 +300,14 @@ def generate_noisy_cifar(dataset,
                          output_folder,
                          seed,
                          background=False):
-    """Generates noisy cifar data and write TF records to disk.
+    """Generates noisy coco data and write TF records to disk.
     The output tf record has the following naming:
     1. Clean training set:    train_clean-?????-of-?????
     2. Noisy training set:    train_noisy-?????-of-?????
     3. Validation set:        validation-?????-of-?????
     4. Test set:              test-?????-of-?????
 
-    :param dataset          [string]       Dataset name, `cifar-10` or `cifar-100`.
+    :param dataset          [string]       Dataset name, `coco`.
     :param data_folder      [string]       Data folder.
     :param num_val          [int]          Number of images in validation.
     :param noise_ratio      [float]        Ratio of noisy data in train_noisy.
@@ -344,12 +316,9 @@ def generate_noisy_cifar(dataset,
     :param seed             [int]          Random seed for creating the split.
     """
     # Read in dataset.
-    if dataset == 'cifar-10':
-        train_img, train_label, test_img, test_label = read_cifar_10(data_folder)
+    if dataset == 'coco':
+        train_img, train_label, test_img, test_label = read_coco(data_folder)
         num_classes = 10
-    elif dataset == 'cifar-100':
-        train_img, train_label, test_img, test_label = read_cifar_100(data_folder)
-        num_classes = 100
 
     # Split training set and validation set.
     train_img, train_label, val_img, val_label = trainval_split(train_img, train_label, num_val,
@@ -390,7 +359,7 @@ def generate_noisy_cifar(dataset,
 
 
 def main():
-    generate_noisy_cifar(FLAGS.dataset, FLAGS.data_folder, FLAGS.num_val, FLAGS.noise_ratio,
+    generate_noisy_coco(FLAGS.dataset, FLAGS.data_folder, FLAGS.num_val, FLAGS.noise_ratio,
                          FLAGS.num_clean, FLAGS.output_folder, FLAGS.seed)
 
 
@@ -400,10 +369,10 @@ if __name__ == '__main__':
     flags.DEFINE_integer('num_clean', 100, 'Number of clean training data, default 100')
     flags.DEFINE_integer('num_val', 5000, 'Number of validation data, default 5000')
     flags.DEFINE_integer('seed', 0, 'Random seed, default 0')
-    flags.DEFINE_string('data_folder', './data/cifar-10',
-                        'Data set folder, default `./data/cifar-10`')
-    flags.DEFINE_string('dataset', 'cifar-10', 'Data set name, default `cifar-10`')
-    flags.DEFINE_string('output_folder', './data/cifar-10-noisy',
-                        'TFRecord output folder, default `./data/cifar-10-noisy')
+    flags.DEFINE_string('data_folder', './data/coco',
+                        'Data set folder, default `./data/coco`')
+    flags.DEFINE_string('dataset', 'coco', 'Data set name, default `coco`')
+    flags.DEFINE_string('output_folder', './data/coco-noisy',
+                        'TFRecord output folder, default `./data/coco-noisy')
     FLAGS = tf.flags.FLAGS
     main()

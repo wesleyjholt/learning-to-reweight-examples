@@ -9,10 +9,10 @@
 #
 #
 #
-# Trains a CNN on CIFAR with noisy labels (uniform flip).
+# Trains a CNN on COCO with noisy labels (uniform flip).
 #
 # Usage:
-# python cifar.cifar_train
+# python coco.coco_train
 #
 # Mandatory flags:
 #   --config           [string]        Config file path
@@ -56,10 +56,9 @@ from models.cnn.resnet_model import ResnetModel    # NOQA
 from utils import logger, gen_id
 from utils.learn_rate_schedulers import FixedLearnRateScheduler
 
-from cifar.generate_noisy_cifar_data import generate_noisy_cifar
-from cifar.noisy_cifar_dataset import NoisyCifar100Dataset    # NOQA
-from cifar.noisy_cifar_dataset import NoisyCifar10Dataset    # NOQA
-from cifar.noisy_cifar_input_pipeline import NoisyCifarInputPipeline    # NOQA
+from coco.generate_noisy_coco_data import generate_noisy_coco
+from coco.noisy_coco_dataset import NoisyCOCODataset    # NOQA
+from coco.noisy_coco_input_pipeline import NoisyCOCOInputPipeline    # NOQA
 from models.assigned_weights_resnet_model import AssignedWeightsResnetModel    # NOQA
 from models.weighted_resnet_model import WeightedResnetModel    # NOQA
 from models.reweight_model import reweight_autodiff
@@ -126,7 +125,7 @@ def _get_reweighted_model(config, inp, label, weights, bsize, is_training, name_
 
 def _get_data_input(dataset, data_dir, split, bsize, is_training, seed, **kwargs):
     """Builds data input."""
-    data = get_data_inputs(dataset, data_dir, split, is_training, bsize, 'cifar-noisy', **kwargs)
+    data = get_data_inputs(dataset, data_dir, split, is_training, bsize, 'coco-noisy', **kwargs)
     batch = data.inputs(seed=seed)
     inp, label, idx, clean_flag = batch['image'], batch['label'], batch['index'], batch['clean']
     DataTuple = namedtuple('DataTuple', ['data', 'inputs', 'labels', 'index', 'clean_flag'])
@@ -163,7 +162,7 @@ def _get_noisy_data_inputs(bsize, seed=0):
 
     # Generate TF records if not exist.
     if not os.path.exists(data_dir):
-        generate_noisy_cifar(FLAGS.dataset,
+        generate_noisy_coco(FLAGS.dataset,
                              os.path.join(FLAGS.data_root, FLAGS.dataset), FLAGS.num_val,
                              FLAGS.noise_ratio, FLAGS.num_clean, data_dir, FLAGS.seed)
 
@@ -441,7 +440,7 @@ def train_model(sess,
                 noisy_val_model=None,
                 save_folder=None):
     """
-    Trains a CIFAR model.
+    Trains a COCO model.
 
     :param sess:                 [Session]    Session object.
     :param exp_id:               [string]     Experiment ID.
@@ -702,9 +701,9 @@ if __name__ == '__main__':
     flags.DEFINE_integer('seed', 0, 'Random seed for creating the split')
     flags.DEFINE_string('config', None, 'Manually defined config file')
     flags.DEFINE_string('data_root', './data', 'Data folder')
-    flags.DEFINE_string('dataset', 'cifar-10', 'Dataset name')
+    flags.DEFINE_string('dataset', 'coco', 'Dataset name')
     flags.DEFINE_string('id', None, 'Experiment ID')
-    flags.DEFINE_string('results', './results/cifar', 'Saving folder')
+    flags.DEFINE_string('results', './results/coco', 'Saving folder')
     FLAGS = flags.FLAGS
     if FLAGS.verbose:
         log.setLevel(logging.DEBUG)
