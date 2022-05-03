@@ -150,29 +150,19 @@ def read_coco(data_folder):
     :return                 [tuple]        A tuple of train images and labels, and test images and
                                            labels
     """
-    train_file_list = ['data.pickle']
-    test_file_list = ['data.pickle']
-    data_dict = {}
-    for file_list, name in zip([train_file_list, test_file_list], ['train', 'validation']):
-        img_list = []
-        label_list = []
-        for ii in six.moves.xrange(len(file_list)):
-            data_dict = _unpickle(os.path.join(data_folder, 'image-data', file_list[ii]))
-            _img = data_dict['data']
-            _label = data_dict['labels']
-            _img = _img.reshape([-1, 3, 32, 32])
-            _img = _img.transpose([0, 2, 3, 1])
-            img_list.append(_img)
-            label_list.append(_label)
-        img = np.concatenate(img_list, axis=0)
-        label = np.concatenate(label_list, axis=0)
-        if name == 'train':
-            train_img = img
-            train_label = label
-        else:
-            test_img = img
-            test_label = label
-        # train_img and test_img have shape [n_images, n_rows, n_cols, n_channels]
+    train_file = 'data.pickle'
+    test_file = 'data.pickle'
+
+    with open(os.path.join(data_folder, 'image-data', train_file)) as F:
+        data_dict_train = pkl.load(F)
+    train_img = data_dict_train['data']
+    train_label = data_dict_train['label']
+    with open(os.path.join(data_folder, 'image-data', test_file)) as F:
+        data_dict_test = pkl.load(F)
+    test_img = data_dict_test['data']
+    test_label = data_dict_test['label']
+    
+    # train_img and test_img have shape [n_images, n_rows, n_cols, n_channels]
     return train_img, train_label, test_img, test_label
 
 
