@@ -307,6 +307,8 @@ def evaluate(sess, model, num_batches, data=None):
             inp, label = sess.run([data.inputs, data.labels])
         else:
             inp, label = None, None
+        print(inp)
+        print(label)
         correct, ce = model.eval_step(sess, inp=inp, label=label)
         num_correct += correct.sum()
         count += correct.size
