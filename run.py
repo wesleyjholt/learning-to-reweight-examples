@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 from torchvision import datasets,transforms
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 import time
 import copy
@@ -128,7 +128,7 @@ criterion = nn.BCEWithLogitsLoss().to(args['device'])
 
 start_time, end_time = torch.cuda.Event(enable_timing=True),\
                         torch.cuda.Event(enable_timing=True)
-writer = SummaryWriter('logs/baseline')
+# writer = SummaryWriter('logs/baseline')
 start_time.record()
 
 for ep in tqdm(range(1, args['n_epochs']+1)):
@@ -153,10 +153,14 @@ for ep in tqdm(range(1, args['n_epochs']+1)):
         train_loss, train_acc = train_loss/len(train_dataset), train_acc/len(train_dataset)       
         test_loss, (test_acc, test_per_class_acc) = get_loss_n_accuracy(model, criterion, test_loader, args)                                  
         # log/print data
-        writer.add_scalar('Test/Loss', test_loss, ep)
-        writer.add_scalar('Test/Accuracy', test_acc, ep)
-        writer.add_scalar('Training/Loss', train_loss, ep)
-        writer.add_scalar('Training/Accuracy', train_acc, ep)
+        # writer.add_scalar('Test/Loss', test_loss, ep)
+        # writer.add_scalar('Test/Accuracy', test_acc, ep)
+        # writer.add_scalar('Training/Loss', train_loss, ep)
+        # writer.add_scalar('Training/Accuracy', train_acc, ep)
+        print('Test/Loss', test_loss, ep)
+        print('Test/Accuracy', test_acc, ep)
+        print('Training/Loss', train_loss, ep)
+        print('Training/Accuracy', train_acc, ep)
         print(f'|Train/Test Loss: {train_loss:.3f} / {test_loss:.3f}|', end='--')
         print(f'|Train/Test Acc: {train_acc:.3f} / {test_acc:.3f}|', end='\r')    
 
@@ -170,7 +174,7 @@ model = LeNet5().to(args['device'])
 opt = optim.SGD(model.parameters(), lr=args['lr'])
 start_time, end_time = torch.cuda.Event(enable_timing=True),\
                         torch.cuda.Event(enable_timing=True)
-writer = SummaryWriter('logs/weighted')
+# writer = SummaryWriter('logs/weighted')
 start_time.record()
 
 for ep in tqdm(range(1, args['n_epochs']+1)):
@@ -226,10 +230,14 @@ for ep in tqdm(range(1, args['n_epochs']+1)):
         train_loss, train_acc = train_loss/len(train_dataset), train_acc/len(train_dataset)       
         test_loss, (test_acc, test_per_class_acc) = get_loss_n_accuracy(model, criterion, test_loader, args)                                  
         # log/print data
-        writer.add_scalar('Test/Loss', test_loss, ep)
-        writer.add_scalar('Test/Accuracy', test_acc, ep)
-        writer.add_scalar('Training/Loss', train_loss, ep)
-        writer.add_scalar('Training/Accuracy', train_acc, ep)
+        # writer.add_scalar('Test/Loss', test_loss, ep)
+        # writer.add_scalar('Test/Accuracy', test_acc, ep)
+        # writer.add_scalar('Training/Loss', train_loss, ep)
+        # writer.add_scalar('Training/Accuracy', train_acc, ep)
+        print('Test/Loss', test_loss, ep)
+        print('Test/Accuracy', test_acc, ep)
+        print('Training/Loss', train_loss, ep)
+        print('Training/Accuracy', train_acc, ep)
         print(f'|Train/Test Loss: {train_loss:.3f} / {test_loss:.3f}|', end='--')
         print(f'|Train/Test Acc: {train_acc:.3f} / {test_acc:.3f}|', end='\r')    
 
