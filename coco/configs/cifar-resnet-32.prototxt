@@ -24,7 +24,7 @@ resnet_module_config: {
 }
 optimizer_config: {
     type: "momentum"
-    learn_rate: 1e-1
+    learn_rate: 1e-3
     momentum: 9e-1
     batch_size: 100
     max_train_iter: 80000
