@@ -158,7 +158,7 @@ def read_coco(data_folder):
         img_list = []
         label_list = []
         for ii in six.moves.xrange(len(file_list)):
-            data_dict = _unpickle(os.path.join('data/cifar/cifar-10-batches-py', file_list[ii]))
+            data_dict = _unpickle(os.path.join('data/cifar-10/cifar-10-batches-py', file_list[ii]))
             _img = data_dict[b'data']
             _label = data_dict[b'labels']
             _img = _img.reshape([-1, 3, 32, 32])
