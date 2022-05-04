@@ -47,7 +47,7 @@ class COCODataset(Dataset):
         if self.subset == 'trainval':
             return 20000
         if self.subset == 'test':
-            return 20000
+            return 1000
 
     def download_message(self):
         pass

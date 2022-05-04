@@ -168,11 +168,13 @@ def read_coco(data_folder):
         img = np.concatenate(img_list, axis=0)
         label = np.concatenate(label_list, axis=0)
         if name == 'train':
-            train_img = img
-            train_label = label
+            idx = np.random.permutation(img.shape[0])
+            train_img = img[idx][:20000]
+            train_label = label[idx][:20000]
         else:
-            test_img = img
-            test_label = label
+            idx = np.random.permutation(img.shape[0])
+            test_img = img[idx][:1000]
+            test_label = label[idx][:1000]
         # train_img and test_img have shape [n_images, n_rows, n_cols, n_channels]
     return train_img, train_label, test_img, test_label
 
