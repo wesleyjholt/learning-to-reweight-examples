@@ -156,11 +156,11 @@ def read_coco(data_folder):
     with open(os.path.join(data_folder, 'image-data', train_file), 'rb') as F:
         data_dict_train = pkl.load(F)
     train_img = data_dict_train['data']
-    train_label = data_dict_train['label']
+    train_label = data_dict_train['labels']
     with open(os.path.join(data_folder, 'image-data', test_file), 'rb') as F:
         data_dict_test = pkl.load(F)
     test_img = data_dict_test['data']
-    test_label = data_dict_test['label']
+    test_label = data_dict_test['labels']
 
     # train_img and test_img have shape [n_images, n_rows, n_cols, n_channels]
     return train_img, train_label, test_img, test_label
