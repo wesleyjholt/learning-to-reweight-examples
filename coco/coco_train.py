@@ -525,7 +525,7 @@ def train_model(sess,
                 'train_acc': '{:.3f}%'.format(trn_acc * 100),
                 'val_acc': '{:.3f}%'.format(val_acc * 100),
                 'lr': '{:.3e}'.format(lr_scheduler.learn_rate),
-                'data_a': data_a.keys()
+                'data_a': data_a
             }
             if noisy_val_model is not None:
                 disp_dict['val_noise_acc'] = '{:.3f}%'.format(noisy_val_acc * 100)
