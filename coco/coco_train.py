@@ -261,6 +261,8 @@ def train_step(sess, model_a, model_b, ex_weights, model_c, data_a, data_b, ex_w
     :return: Training cross entropy.
     """
     # Get data.
+    print(data_a.inputs)
+    print(data_b.inputs)
     if not FLAGS.baseline:
         inp_a, label_a, idx_a = sess.run([data_a.inputs, data_a.labels, data_a.index])
         dict_a = model_a._get_feed_dict(inp=inp_a, label=label_a)
