@@ -492,8 +492,6 @@ def train_model(sess,
     it = tqdm(six.moves.xrange(niter_start, max_train_iter), desc=exp_id, ncols=0)
     for niter in it:
         lr_scheduler.step(niter)
-        print(data_a)
-        print(data_b)
         ce = train_step(
             sess, model_a, model_b, ex_weights, model_c, data_a, data_b, ex_wts_a=ex_wts_a)
 
@@ -526,7 +524,8 @@ def train_model(sess,
                 'ce': '{:.3e}'.format(ce),
                 'train_acc': '{:.3f}%'.format(trn_acc * 100),
                 'val_acc': '{:.3f}%'.format(val_acc * 100),
-                'lr': '{:.3e}'.format(lr_scheduler.learn_rate)
+                'lr': '{:.3e}'.format(lr_scheduler.learn_rate),
+                'data_a': data_a.keys()
             }
             if noisy_val_model is not None:
                 disp_dict['val_noise_acc'] = '{:.3f}%'.format(noisy_val_acc * 100)
