@@ -307,8 +307,6 @@ def evaluate(sess, model, num_batches, data=None):
             inp, label = sess.run([data.inputs, data.labels])
         else:
             inp, label = None, None
-        print(inp)
-        print(label)
         correct, ce = model.eval_step(sess, inp=inp, label=label)
         num_correct += correct.sum()
         count += correct.size
@@ -494,6 +492,8 @@ def train_model(sess,
     it = tqdm(six.moves.xrange(niter_start, max_train_iter), desc=exp_id, ncols=0)
     for niter in it:
         lr_scheduler.step(niter)
+        print(data_a)
+        print(data_b)
         ce = train_step(
             sess, model_a, model_b, ex_weights, model_c, data_a, data_b, ex_wts_a=ex_wts_a)
 
